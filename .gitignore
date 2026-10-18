@@ -1,0 +1,28 @@
+
+.pytest_cache/
+*.db
+backend/data/screen_rf.joblib
+backend/data/text_model/
+flutter_app/app/
+.venv/
+
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Environment variables and secrets
+.env
+.env.*
+
+# IDE settings
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db

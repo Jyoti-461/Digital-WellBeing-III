@@ -1,0 +1,56 @@
+{
+  "_notes": "Item wording verified against publicly available copies of each instrument. PHQ-9 and GAD-7: developed by Spitzer, Williams, Kroenke and colleagues (PHQ-9 sheets carry a Pfizer copyright notice; GAD-7 sheets state no permission is required to reproduce). PSS-10: Cohen, Kamarck & Mermelstein (1983); the Carnegie Mellon PSS page directs permission requests to MAPI Research Trust (ePROVIDE) - confirm your permission status before deployment.",
+  "phq9": {
+    "title": "PHQ-9 (depression screening)",
+    "prompt": "Over the last 2 weeks, how often have you been bothered by any of the following problems?",
+    "options": ["Not at all", "Several days", "More than half the days", "Nearly every day"],
+    "items": [
+      "Little interest or pleasure in doing things",
+      "Feeling down, depressed, or hopeless",
+      "Trouble falling or staying asleep, or sleeping too much",
+      "Feeling tired or having little energy",
+      "Poor appetite or overeating",
+      "Feeling bad about yourself \u2014 or that you are a failure or have let yourself or your family down",
+      "Trouble concentrating on things, such as reading the newspaper or watching television",
+      "Moving or speaking so slowly that other people could have noticed? Or the opposite \u2014 being so fidgety or restless that you have been moving around a lot more than usual",
+      "Thoughts that you would be better off dead, or of hurting yourself in some way"
+    ],
+    "reverse_items": [],
+    "safety_item_index": 8
+  },
+  "gad7": {
+    "title": "GAD-7 (anxiety screening)",
+    "prompt": "Over the last 2 weeks, how often have you been bothered by the following problems?",
+    "options": ["Not at all", "Several days", "More than half the days", "Nearly every day"],
+    "items": [
+      "Feeling nervous, anxious or on edge",
+      "Not being able to stop or control worrying",
+      "Worrying too much about different things",
+      "Trouble relaxing",
+      "Being so restless that it is hard to sit still",
+      "Becoming easily annoyed or irritable",
+      "Feeling afraid as if something awful might happen"
+    ],
+    "reverse_items": [],
+    "safety_item_index": null
+  },
+  "pss10": {
+    "title": "PSS-10 (perceived stress)",
+    "prompt": "The questions in this scale ask you about your feelings and thoughts during the last month.",
+    "options": ["Never", "Almost never", "Sometimes", "Fairly often", "Very often"],
+    "items": [
+      "In the last month, how often have you been upset because of something that happened unexpectedly?",
+      "In the last month, how often have you felt that you were unable to control the important things in your life?",
+      "In the last month, how often have you felt nervous and \u201cstressed\u201d?",
+      "In the last month, how often have you felt confident about your ability to handle your personal problems?",
+      "In the last month, how often have you felt that things were going your way?",
+      "In the last month, how often have you found that you could not cope with all the things that you had to do?",
+      "In the last month, how often have you been able to control irritations in your life?",
+      "In the last month, how often have you felt that you were on top of things?",
+      "In the last month, how often have you been angered because of things that were outside of your control?",
+      "In the last month, how often have you felt difficulties were piling up so high that you could not overcome them?"
+    ],
+    "reverse_items": [4, 5, 7, 8],
+    "safety_item_index": null
+  }
+}

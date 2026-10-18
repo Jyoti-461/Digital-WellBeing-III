@@ -1,0 +1,123 @@
+package __PACKAGE__
+
+import android.app.AppOpsManager
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStatsManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Process
+import android.provider.Settings
+import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
+import java.util.Calendar
+
+/**
+ * Bridge between Flutter and Android's UsageStatsManager.
+ *
+ * queryTodayUsage returns {packageName: minutesInForegroundToday} computed from usage *events*
+ * (activity resumed -> paused), from local midnight until now. Values are approximate: compare them
+ * against the phone's own Digital Wellbeing screen on at least one pilot device before relying on them.
+ */
+class MainActivity : FlutterActivity() {
+    private val channelName = "edu.timscdr.wellbeing/usage"
+
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "hasUsageAccess" -> result.success(hasUsageAccess())
+                    "openUsageAccessSettings" -> {
+                        openUsageAccessSettings()
+                        result.success(null)
+                    }
+                    "packageName" -> result.success(packageName)
+                    "queryTodayUsage" -> {
+                        if (!hasUsageAccess()) {
+                            result.error("NO_PERMISSION", "Usage access has not been granted", null)
+                        } else {
+                            try {
+                                result.success(queryTodayUsageMinutes())
+                            } catch (e: Exception) {
+                                result.error("QUERY_FAILED", e.message, null)
+                            }
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    private fun hasUsageAccess(): Boolean {
+        val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOps.unsafeCheckOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), packageName
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            appOps.checkOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), packageName
+            )
+        }
+        return mode == AppOpsManager.MODE_ALLOWED
+    }
+
+    private fun openUsageAccessSettings() {
+        try {
+            startActivity(
+                Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, Uri.parse("package:$packageName"))
+            )
+        } catch (e: Exception) {
+            startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+        }
+    }
+
+    private fun queryTodayUsageMinutes(): Map<String, Double> {
+        val usm = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val cal = Calendar.getInstance()
+        val end = cal.timeInMillis
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        val start = cal.timeInMillis
+
+        val events = usm.queryEvents(start, end)
+        val ev = UsageEvents.Event()
+        val resumedAt = HashMap<String, Long>()   // "package/activity" -> resume timestamp
+        val totalMs = HashMap<String, Long>()     // package -> accumulated foreground ms
+
+        fun close(key: String, at: Long) {
+            val s = resumedAt.remove(key) ?: return
+            if (at > s) {
+                val pkg = key.substringBefore("/")
+                totalMs[pkg] = (totalMs[pkg] ?: 0L) + (at - s)
+            }
+        }
+
+        while (events.hasNextEvent()) {
+            events.getNextEvent(ev)
+            val pkg = ev.packageName ?: continue
+            val key = pkg + "/" + (ev.className ?: "")
+            when (ev.eventType) {
+                UsageEvents.Event.ACTIVITY_RESUMED -> resumedAt[key] = ev.timeStamp
+                UsageEvents.Event.ACTIVITY_PAUSED -> close(key, ev.timeStamp)
+                // Screen off / shutdown: anything still "resumed" stops counting here.
+                UsageEvents.Event.SCREEN_NON_INTERACTIVE,
+                UsageEvents.Event.DEVICE_SHUTDOWN -> {
+                    for (k in resumedAt.keys.toList()) close(k, ev.timeStamp)
+                }
+            }
+        }
+        // Still in the foreground right now.
+        for (k in resumedAt.keys.toList()) close(k, end)
+
+        val out = HashMap<String, Double>()
+        for ((pkg, ms) in totalMs) out[pkg] = ms / 60000.0
+        return out
+    }
+}
