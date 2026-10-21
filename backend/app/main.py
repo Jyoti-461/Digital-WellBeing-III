@@ -15,6 +15,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
 from . import assessments, config, fusion, nlp_engine, recommend, safety, screen_engine, security
+from . import insights as insights_engine
 from .db import db, init_db
 
 
@@ -232,6 +233,70 @@ def history(days: int = Query(default=30, ge=1, le=366), user=Depends(current_us
             for r in rows
         ]
     }
+
+
+# ------------------------------------------------------------------ history of questionnaires + insights
+@app.get("/history/assessments")
+def assessment_history(limit: int = Query(default=50, ge=1, le=200), user=Depends(current_user)):
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM assessments WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?",
+            (user["id"], limit),
+        ).fetchall()
+    out = []
+    for r in rows:
+        inst = assessments.INSTRUMENTS.get(r["instrument"])
+        out.append({
+            "instrument": r["instrument"],
+            "title": inst["title"] if inst else r["instrument"],
+            "total": r["total"],
+            "max_total": assessments.max_total(r["instrument"]) if inst else None,
+            "band": r["band"],
+            "item9_positive": bool(r["item9_positive"]),
+            "created_at": r["created_at"],
+        })
+    return {"entries": out}
+
+
+@app.get("/insights")
+def get_insights(today: Optional[str] = None, user=Depends(current_user)):
+    if today is None:
+        today_date = security.now_utc().date()
+    else:
+        try:
+            today_date = datetime.strptime(today, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(422, "today must be yyyy-MM-dd")
+    with db() as conn:
+        c_rows = conn.execute(
+            "SELECT * FROM checkins WHERE user_id = ? ORDER BY day DESC LIMIT 90", (user["id"],)
+        ).fetchall()
+        a_rows = conn.execute(
+            "SELECT * FROM assessments WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 60",
+            (user["id"],),
+        ).fetchall()
+    checkins = [
+        {
+            "day": r["day"],
+            "hours": {c: r[c] for c in config.CATEGORIES},
+            "text_risk": r["text_risk"],
+            "fused_score": r["fused_score"],
+            "tier": r["tier"],
+            "crisis_flag": bool(r["crisis_flag"]),
+        }
+        for r in c_rows
+    ]
+    assessed = [
+        {
+            "instrument": r["instrument"],
+            "total": r["total"],
+            "band": r["band"],
+            "item9_positive": bool(r["item9_positive"]),
+            "created_at": r["created_at"],
+        }
+        for r in a_rows
+    ]
+    return insights_engine.build_insights(checkins, assessed, today_date)
 
 
 # ------------------------------------------------------------------ assessments

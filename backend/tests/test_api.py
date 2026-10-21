@@ -115,3 +115,27 @@ def test_admin_export(client, auth):
     r2 = client.get("/admin/export/checkins.csv?include_text=true", headers={"X-Admin-Token": "test-admin-token"})
     assert "mood_text" in r2.text.splitlines()[0]
     assert client.get("/admin/export/assessments.csv", headers={"X-Admin-Token": "test-admin-token"}).status_code == 200
+
+
+def test_assessment_history_endpoint(client, auth):
+    client.post("/assessments/gad7", json={"answers": [1, 1, 1, 1, 1, 1, 1]}, headers=auth)
+    client.post("/assessments/phq9", json={"answers": [0] * 9}, headers=auth)
+    h = client.get("/history/assessments", headers=auth).json()["entries"]
+    assert [e["instrument"] for e in h] == ["phq9", "gad7"]          # newest first
+    assert h[1]["total"] == 7 and h[1]["max_total"] == 21 and h[1]["band"] == "mild"
+    assert h[0]["title"].startswith("PHQ-9")
+    assert client.get("/history/assessments").status_code == 401
+
+
+def test_insights_endpoint(client, auth):
+    for i in range(1, 5):
+        client.post("/checkin", json=good_checkin(f"2025-10-{10 + i:02d}", social_media=3.0), headers=auth)
+    r = client.get("/insights?today=2025-10-15", headers=auth)
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert set(d) == {"as_of", "checkin", "questionnaire", "support", "disclaimer"}
+    assert d["checkin"]["n_last7"] == 4
+    assert any("Social Media was over" in o for o in d["checkin"]["observations"])
+    assert client.get("/insights?today=15-10-2025", headers=auth).status_code == 422
+    assert client.get("/insights").status_code == 401
+    assert client.get("/insights", headers=auth).status_code == 200      # defaults to the server's date

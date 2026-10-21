@@ -98,4 +98,12 @@ class ApiClient {
   Future<Map<String, dynamic>> submitAssessment(String name, List<int> answers) async =>
       Map<String, dynamic>.from(await _handle(
           http.post(_uri('/assessments/$name'), headers: _headers, body: jsonEncode({'answers': answers}))));
+
+  Future<List<dynamic>> assessmentHistory() async {
+    final res = await _handle(http.get(_uri('/history/assessments'), headers: _headers));
+    return (res['entries'] as List<dynamic>);
+  }
+
+  Future<Map<String, dynamic>> insights(String today) async =>
+      Map<String, dynamic>.from(await _handle(http.get(_uri('/insights?today=$today'), headers: _headers)));
 }

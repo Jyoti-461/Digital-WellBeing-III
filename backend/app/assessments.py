@@ -49,3 +49,8 @@ def score(name: str, answers: list[int]) -> dict:
     item_positive = safety_idx is not None and answers[safety_idx] > 0
     return {"total": total, "band": _band(name, total), "item9_positive": bool(item_positive),
             "max_total": n_items * max_val}
+
+
+def max_total(name: str) -> int:
+    inst = INSTRUMENTS[name]
+    return len(inst["items"]) * (len(inst["options"]) - 1)
